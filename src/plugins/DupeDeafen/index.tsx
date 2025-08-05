@@ -7,7 +7,6 @@ import { localStorage } from "@utils/localStorage";
 
 let originalVoiceStateUpdate: any;
 let unpatchVoiceState: (() => void) | null = null;
-let dupeDeafenEnabled = getDupeState();
 
 const Button = findComponentByCodeLazy(".NONE,disabled:", ".PANEL_BUTTON");
 
@@ -37,11 +36,7 @@ function DupeDeafenIcon({ enabled }: { enabled: boolean; }) {
 
       <path
         transform="translate(0, 150)"
-        style={{
-          opacity: enabled ? 1 : 0,
-          transition: "opacity 0.2s ease, transform 0.2s ease",
-        }}
-        className="dupe-cross"
+        opacity={enabled ? "1" : "0"}
         d="M30.46,598.3c-3.73,0-7.23-1.45-9.86-4.09l-13.95-13.95c-2.63-2.63-4.09-6.14-4.09-9.86s1.45-7.23,4.09-9.86L535.68,31.52c2.63-2.63,6.14-4.08,9.86-4.08s7.23,1.45,9.86,4.08l13.95,13.95c2.63,2.63,4.09,6.14,4.09,9.86s-1.45,7.23-4.09,9.86L40.32,594.22c-2.63,2.63-6.14,4.09-9.86,4.09Z"
       />
     </svg>
@@ -51,6 +46,50 @@ function DupeDeafenIcon({ enabled }: { enabled: boolean; }) {
 function DupeDeafenButton() {
   const [enabled, setEnabled] = React.useState(getDupeState);
 
+  const toggle = () => {
+    const newEnabled = !enabled;
+    setEnabled(newEnabled);
+    setDupeState(newEnabled);
+
+    const ChannelStore = findByProps("getChannel", "getDMFromUserId");
+    const SelectedChannelStore = findByProps("getVoiceChannelId");
+    const GatewayConnection = findByProps(
+      "voiceStateUpdate",
+      "voiceServerPing"
+    );
+    const MediaEngineStore = findByProps("isDeaf", "isMute");
+    if (
+      ChannelStore &&
+      SelectedChannelStore &&
+      GatewayConnection &&
+      typeof GatewayConnection.voiceStateUpdate === "function"
+    ) {
+      const channelId = SelectedChannelStore.getVoiceChannelId?.();
+      const channel = channelId
+        ? ChannelStore.getChannel?.(channelId)
+        : null;
+      if (channel) {
+        if (newEnabled) {
+          GatewayConnection.voiceStateUpdate({
+            channelId: channel.id,
+            guildId: channel.guild_id,
+            selfMute: true,
+            selfDeaf: true,
+          });
+        } else {
+          const selfMute = MediaEngineStore?.isMute?.() ?? false;
+          const selfDeaf = MediaEngineStore?.isDeaf?.() ?? false;
+          GatewayConnection.voiceStateUpdate({
+            channelId: channel.id,
+            guildId: channel.guild_id,
+            selfMute,
+            selfDeaf,
+          });
+        }
+      }
+    }
+  };
+
   return (
     <Button
       className="dupe-hover"
@@ -59,50 +98,7 @@ function DupeDeafenButton() {
       role="switch"
       aria-checked={enabled}
       selected={enabled}
-      onClick={() => {
-        const newEnabled = !enabled;
-        setEnabled(newEnabled);
-        setDupeState(newEnabled);
-        dupeDeafenEnabled = newEnabled;
-
-        const ChannelStore = findByProps("getChannel", "getDMFromUserId");
-        const SelectedChannelStore = findByProps("getVoiceChannelId");
-        const GatewayConnection = findByProps(
-          "voiceStateUpdate",
-          "voiceServerPing"
-        );
-        const MediaEngineStore = findByProps("isDeaf", "isMute");
-        if (
-          ChannelStore &&
-          SelectedChannelStore &&
-          GatewayConnection &&
-          typeof GatewayConnection.voiceStateUpdate === "function"
-        ) {
-          const channelId = SelectedChannelStore.getVoiceChannelId?.();
-          const channel = channelId
-            ? ChannelStore.getChannel?.(channelId)
-            : null;
-          if (channel) {
-            if (enabled) {
-              GatewayConnection.voiceStateUpdate({
-                channelId: channel.id,
-                guildId: channel.guild_id,
-                selfMute: true,
-                selfDeaf: true,
-              });
-            } else {
-              const selfMute = MediaEngineStore?.isMute?.() ?? false;
-              const selfDeaf = MediaEngineStore?.isDeaf?.() ?? false;
-              GatewayConnection.voiceStateUpdate({
-                channelId: channel.id,
-                guildId: channel.guild_id,
-                selfMute,
-                selfDeaf,
-              });
-            }
-          }
-        }
-      }}
+      onClick={toggle}
     />
   );
 }
@@ -110,7 +106,7 @@ function DupeDeafenButton() {
 export default definePlugin({
   name: "DupeDeafen",
   description:
-    "This plugin adds a toggle for a false-deafen mode in which others see you as deafened, but you can still hear and speak. If you wish to be unheard, use the 'Mute' button in addition to 'Dupe Deafen'.",
+    "Toggle a false-deafen mode in which others see you as deafened, but you can still hear and speak. If you wish to be unheard, use the 'Mute' button in addition to 'Dupe Deafen'.",
   authors: [Devs.Noa],
   patches: [
     {
@@ -129,7 +125,7 @@ export default definePlugin({
     originalVoiceStateUpdate = GatewayConnection.voiceStateUpdate;
 
     GatewayConnection.voiceStateUpdate = function (args) {
-      if (dupeDeafenEnabled) {
+      if (getDupeState()) {
         args.selfMute = true;
         args.selfDeaf = true;
       }
