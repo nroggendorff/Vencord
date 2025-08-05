@@ -28,7 +28,6 @@ Before starting your plugin:
 - No simple slash command plugins like `/cat`. Instead, make a [user installable Discord bot](https://discord.com/developers/docs/change-log#userinstallable-apps-preview)
 - No simple text replace plugins like Let me Google that for you. The TextReplace plugin can do this
 - No raw DOM manipulation. Use proper patches and React
-- No FakeDeafen or FakeMute
 - No StereoMic
 - No plugins that simply hide or redesign ui elements. This can be done with CSS
 - No plugins that interact with specific Discord bots (official Discord apps like Youtube WatchTogether are okay)
