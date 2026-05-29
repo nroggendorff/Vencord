@@ -10,4 +10,3 @@ if not exist "%DISCORD_PATH%" (
 )
 
 node scripts/runInstaller.mjs -- --install -location "%DISCORD_PATH%"
-pause
