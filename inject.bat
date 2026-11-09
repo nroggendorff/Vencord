@@ -9,4 +9,7 @@ if not exist "%DISCORD_PATH%" (
     exit /b 1
 )
 
+pnpm install
+npm run build
+
 node scripts/runInstaller.mjs -- --install -location "%DISCORD_PATH%"
